@@ -2,6 +2,7 @@
   <div>
     <Card>
       <dz-table
+        :showPagination="false"
         :totalCount="stores.billrecord.query.totalCount"
         :pageSize="stores.billrecord.query.pageSize"
         @on-page-change="handlePageChanged"
@@ -9,15 +10,15 @@
       >
         <div slot="searcher">
           <section class="dnc-toolbar-wrap">
-            <Row :gutter="16">
-              <Col span="16">
+            <Row :gutter="24">
+              <Col span="10">
                 <Form inline @submit.native.prevent>
                   <FormItem>
                     <Input
                       type="text"
                       clearable
                       v-model="stores.billrecord.query.kw"
-                      placeholder="输入订单号、护工、病人姓名、联系方式进行搜索..."
+                      placeholder="输入订单号、护工、客户名、客户电话进行搜索..."
                       @on-search="handleSearchRecordList()"
                     >
                       <span slot="prepend">检索</span>
@@ -31,37 +32,11 @@
                       type="datetimerange"
                       style="width: 200px"
                       format="yyyy-MM-dd"
-                      placeholder="请选择护理结算日期"
+                      placeholder="请选择日期"
                       clearable
                       @on-ok="handleSearchRecordList()"
                     ></DatePicker>
                   </FormItem>
-                  <!-- <FormItem>
-                    <Select
-                      v-model="stores.billrecord.query.iscancelmanagecost"
-                      @on-change="handleSearchRecordList"
-                      style="width:80px;"
-                    >
-                      <Option
-                        v-for="item in stores.billrecord.sources.yesorno"
-                        :value="item.value"
-                        :key="item.value"
-                      >{{item.text}}</Option>
-                    </Select>
-                  </FormItem>-->
-                  <!-- <FormItem>
-                    <Select
-                      v-model="stores.billrecord.query.isclose"
-                      @on-change="handleSearchRecordList"
-                      style="width:80px;"
-                    >
-                      <Option
-                        v-for="item in stores.billrecord.sources.yesorno"
-                        :value="item.value"
-                        :key="item.value"
-                      >{{item.text}}</Option>
-                    </Select>
-                  </FormItem>-->
                   <FormItem>
                     <Select
                       clearable
@@ -122,6 +97,21 @@
                       >
                     </Select>
                   </FormItem>
+                  <FormItem>
+                    <Select
+                      clearable
+                      v-model="stores.billrecord.query.fpaywayid"
+                      @on-change="handleSearchRecordList"
+                      style="width: 80px"
+                    >
+                      <Option
+                        v-for="item in stores.billrecord.sources.payWays"
+                        :value="item.id"
+                        :key="item.id"
+                        >{{ item.name }}</Option
+                      >
+                    </Select>
+                  </FormItem>
                   <ButtonGroup>
                     <Button
                       size="large"
@@ -140,32 +130,28 @@
                   </ButtonGroup>
                 </Form>
               </Col>
+              <Col span="14">
+                <dz-table :showPagination="false">
+                  <Table
+                    slot="table"
+                    ref="tables_summary"
+                    :border="false"
+                    size="small"
+                    :highlight-row="true"
+                    :data="stores.billrecord.data_summary"
+                    :columns="stores.billrecord.columns_summary"
+                    :row-class-name="rowClsRender"
+                  ></Table>
+                </dz-table>
+              </Col>
             </Row>
           </section>
-          <section style="margin-bottom: 10px">
-            <ButtonGroup>
-              <Button
-                icon="ios-paper-outline"
-                :type="showDetail ? 'primary' : undefined"
-                @click="doSwitch(0)"
-                >明细网格</Button
-              >
-              <Button
-                icon="ios-paper-outline"
-                :type="!showDetail ? 'primary' : undefined"
-                @click="doSwitch(1)"
-                >汇总网格</Button
-              >
-            </ButtonGroup>
-          </section>
         </div>
-
         <Table
           slot="table"
           ref="tables"
           :border="false"
           size="small"
-          v-show="showDetail"
           :highlight-row="true"
           :data="stores.billrecord.data"
           :columns="stores.billrecord.columns"
@@ -173,17 +159,6 @@
           :row-class-name="rowClsRender"
           @on-page-change="handlePageChanged"
           @on-page-size-change="handlePageSizeChanged"
-        ></Table>
-
-        <Table
-          slot="table"
-          ref="tables"
-          :border="false"
-          size="small"
-          v-show="!showDetail"
-          :highlight-row="true"
-          :data="stores.summary.data"
-          :columns="stores.summary.columns"
         ></Table>
       </dz-table>
     </Card>
@@ -193,31 +168,34 @@
 <script>
 import DzTable from "_c/tables/dz-table.vue";
 import dayjs from "dayjs";
-import {
-  getFeeRecord,
-  getFeeSummaryRecord,
-  ExportExcel,
-} from "@/api/sys/feerecord";
+import { getMonthCollect, ExportExcel } from "@/api/sys/billmonth";
 import { getHospitalSelect } from "@/api/base/hospital";
 import { getAreaSelectAll } from "@/api/base/area";
 import { getBedSelectAll } from "@/api/base/bed";
 import { getManagerSelectAll } from "@/api/base/manager";
-import { getCareProjectSelectAll } from "@/api/base/careproject";
-import { getCareWaySelectAll } from "@/api/base/careway";
 import { getPayWaySelectAll } from "@/api/base/payway";
 import { getPcSelectAll } from "@/api/base/pc";
+import { getUserSelectAll } from "@/api/rbac/user";
 import { b64toFile } from "@/libs/tools";
 import { saveAs } from "file-saver";
+import expandRow from "./table-expand.vue";
 export default {
-  name: "fee_record_page",
+  name: "month_record_page",
   components: {
     DzTable,
+    expandRow,
   },
   data() {
     var self = this;
     return {
       loading: false,
-      showDetail: true,
+      styles: {
+        height: "calc(100% - 55px)",
+        overflow: "auto",
+        paddingBottom: "53px",
+        position: "static",
+      },
+      curRecord: {},
       dates: [dayjs().format("YYYY-MM-DD"), dayjs().format("YYYY-MM-DD")],
       stores: {
         billrecord: {
@@ -230,8 +208,8 @@ export default {
             fareaid: -1,
             fbedid: -1,
             fmanagerid: -1,
-            iscancelmanagecost: -1,
-            isclose: -1,
+            isclosed: -1,
+            fpaywayid: -1,
             sort: [
               {
                 direct: "DESC",
@@ -251,7 +229,7 @@ export default {
               title: "日期",
               align: "center",
               key: "FDate",
-              width: 130,
+              width: 150,
               render: (h, params) => {
                 const {
                   row: { FDate },
@@ -264,49 +242,43 @@ export default {
               },
             },
             {
-              title: "开始陪护",
-              align: "center",
-              key: "FBegin",
-              width: 120,
-            },
-            {
-              title: "结束陪护",
-              align: "center",
-              key: "FEnd",
-              width: 120,
-            },
-            {
               title: "所属医院",
               align: "center",
-              key: "FHospitalName",
+              key: "FHospitalID",
               width: 120,
+              render: (h, params) => {
+                const {
+                  row: { FHospitalID },
+                } = params;
+                var tmp = self.stores.billrecord.sources.hospiatls.find(
+                  (f) => f.id == FHospitalID
+                );
+
+                if (tmp) {
+                  return h("span", {}, tmp.name);
+                }
+              },
             },
             {
               title: "病区",
               align: "center",
-              key: "FAreaName",
+              key: "FAreaID",
               width: 80,
+              render: (h, params) => {
+                const {
+                  row: { FAreaID },
+                } = params;
+                var tmp = self.stores.billrecord.sources.areas.find(
+                  (f) => f.id == FAreaID
+                );
+
+                if (tmp) {
+                  return h("span", {}, tmp.name);
+                }
+              },
             },
             {
-              title: "床号",
-              align: "center",
-              key: "FBedName",
-              width: 80,
-            },
-            {
-              title: "管理老师",
-              align: "center",
-              key: "FManagerName",
-              width: 80,
-            },
-            {
-              title: "护工",
-              align: "center",
-              key: "FPcName",
-              width: 80,
-            },
-            {
-              title: "病人姓名",
+              title: "客户",
               align: "center",
               key: "FClient",
               width: 80,
@@ -318,110 +290,89 @@ export default {
               width: 100,
             },
             {
-              title: "护理方式",
+              title: "床号",
               align: "center",
-              key: "FCareWayName",
+              key: "FBedID",
               width: 80,
-            },
-            {
-              title: "护理类型",
-              align: "center",
-              key: "FCareProjectName",
-              width: 100,
-            },
-            {
-              title: "护理单价",
-              align: "center",
-              key: "FPrice",
-              width: 80,
-            },
-            {
-              title: "天数",
-              align: "center",
-              key: "FDay",
-              width: 80,
-            },
-            // {
-            //   title: "交叉天数",
-            //   align: "center",
-            //   key: "FRepeatDay",
-            //   width: 80,
-            // },
-            {
-              title: "收款金额",
-              align: "center",
-              key: "FCost",
-              width: 80,
-            },
-            {
-              title: "医院管理费",
-              align: "center",
-              key: "FHospitalMgrCost",
-              width: 80,
-            },
-            {
-              title: "公司管理费",
-              align: "center",
-              key: "FCompanyMgrCost",
-              width: 80,
-            },
-            {
-              title: "护工费",
-              align: "center",
-              key: "FPersonCost",
-              width: 80,
-            },
-            {
-              title: "节日",
-              align: "center",
-              key: "FPersonCost",
-              width: 90,
               render: (h, params) => {
                 const {
-                  row: { FHolidayBeginDate, FHolidayEndDate },
+                  row: { FBedID },
                 } = params;
-                var text1 =
-                  FHolidayBeginDate != null
-                    ? dayjs(FHolidayBeginDate).format("YYYY-MM-DD")
-                    : "";
-                var text2 =
-                  FHolidayEndDate != null
-                    ? dayjs(FHolidayEndDate).format("YYYY-MM-DD")
-                    : "";
+                var tmp = self.stores.billrecord.sources.beds_bark.find(
+                  (f) => f.id == FBedID
+                );
 
-                return h("span", {}, `${text1}-${text2}`);
+                if (tmp) {
+                  return h("span", {}, tmp.name);
+                }
               },
             },
             {
-              title: "节日工资倍数",
+              title: "管理老师",
               align: "center",
-              key: "FMultiple",
-              width: 90,
+              key: "FManagerID",
+              width: 80,
+              render: (h, params) => {
+                const {
+                  row: { FManagerID },
+                } = params;
+                var tmp = self.stores.billrecord.sources.managers.find(
+                  (f) => f.id == FManagerID
+                );
+
+                if (tmp) {
+                  return h("span", {}, tmp.name);
+                }
+              },
             },
             {
-              title: "节日工资合计",
+              title: "护工",
               align: "center",
-              key: "FHolidayCost",
-              width: 90,
+              key: "FPersonID",
+              width: 80,
+              render: (h, params) => {
+                const {
+                  row: { FPersonID },
+                } = params;
+                var tmp = self.stores.billrecord.sources.persons.find(
+                  (f) => f.id == FPersonID
+                );
+
+                if (tmp) {
+                  return h("span", {}, tmp.name);
+                }
+              },
             },
             {
-              title: "护工费用合计",
+              title: "收款方式",
               align: "center",
-              key: "FTotalPersonCost",
-              width: 90,
+              key: "FRecWayID",
+              width: 80,
+              render: (h, params) => {
+                const {
+                  row: { FRecWayID },
+                } = params;
+                var tmp = self.stores.billrecord.sources.payWays.find(
+                  (f) => f.id == FRecWayID
+                );
+
+                if (tmp) {
+                  return h("span", {}, tmp.name);
+                }
+              },
             },
             {
-              title: "备注",
+              title: "金额",
               align: "center",
-              key: "FRemark",
-              width: 150,
+              key: "FRecSum",
+              width: 120,
             },
           ],
           sources: {
             yesorno: [
               { value: -1, text: "全部" },
-              { value: 0, text: "否" },
-              { value: 1, text: "是" },
+              { value: 0, text: "未出院结算" },
+              { value: 1, text: "已出院结算" },
             ],
             hospiatls: [],
             areas: [],
@@ -432,194 +383,45 @@ export default {
             careWays: [],
             persons: [],
             payWays: [],
+            users: [],
           },
           data: [],
-        },
-        summary: {
-          columns: [
+          columns_summary: [
             {
-              title: "订单号",
+              title: "收款方式",
               align: "center",
-              key: "FOrderBillNo",
+              key: "FRecWayID",
               width: 120,
-            },
-            {
-              title: "开始陪护",
-              align: "center",
-              key: "FBeginDate",
-              width: 150,
               render: (h, params) => {
                 const {
-                  row: { FBeginDate, FBeginPeriod },
+                  row: { FRecWayID },
                 } = params;
-                var text = `${dayjs(FBeginDate).format(
-                  "YYYY-MM-DD"
-                )}(${FBeginPeriod})`;
+                var tmp = self.stores.billrecord.sources.payWays.find(
+                  (f) => f.id == FRecWayID
+                );
 
-                if (FBeginDate != "" && FBeginDate != null) {
-                  return h("span", {}, text);
+                if (tmp) {
+                  return h("span", {}, tmp.name);
+                } else if (FRecWayID == -999) {
+                  return h("span", {}, "合计");
                 }
               },
             },
             {
-              title: "结束陪护",
+              title: "金额",
               align: "center",
-              key: "FEndDate",
-              width: 150,
-              render: (h, params) => {
-                const {
-                  row: { FEndDate, FEndPeriod },
-                } = params;
-                var text = `${dayjs(FEndDate).format(
-                  "YYYY-MM-DD"
-                )}(${FEndPeriod})`;
-
-                if (FEndDate != "" && FEndDate != null) {
-                  return h("span", {}, text);
-                }
-              },
-            },
-            {
-              title: "所属医院",
-              align: "center",
-              key: "FHospitalName",
-              width: 120,
-            },
-            {
-              title: "病区",
-              align: "center",
-              key: "FAreaName",
-              width: 80,
-            },
-            {
-              title: "床号",
-              align: "center",
-              key: "FBedName",
-              width: 80,
-            },
-            {
-              title: "管理老师",
-              align: "center",
-              key: "FManagerName",
-              width: 80,
-            },
-            {
-              title: "护工",
-              align: "center",
-              key: "FPcName",
-              width: 80,
-            },
-            {
-              title: "病人姓名",
-              align: "center",
-              key: "FClient",
-              width: 80,
-            },
-            {
-              title: "联系方式",
-              align: "center",
-              key: "FClientTel",
-              width: 100,
-            },
-            {
-              title: "护理方式",
-              align: "center",
-              key: "FCareWayName",
-              width: 80,
-            },
-            {
-              title: "护理类型",
-              align: "center",
-              key: "FCareProjectName",
-              width: 100,
-            },
-            {
-              title: "护理天数",
-              align: "center",
-              key: "FDay",
-              width: 120,
-            },
-            {
-              title: "收款金额",
-              align: "center",
-              key: "FCost",
-              width: 120,
-            },
-            {
-              title: "医院管理费",
-              align: "center",
-              key: "FHospitalMgrCost",
-              width: 120,
-            },
-            {
-              title: "公司管理费",
-              align: "center",
-              key: "FCompanyMgrCost",
-              width: 120,
-            },
-            {
-              title: "护工费",
-              align: "center",
-              key: "FPersonCost",
-              width: 120,
-            },
-            {
-              title: "节日工资",
-              align: "center",
-              key: "FHolidayCost",
-              width: 120,
-            },
-            {
-              title: "护工总费用",
-              align: "center",
-              key: "FTotalPersonCost",
+              key: "FRecSum",
               width: 120,
             },
           ],
-          data: [],
+          data_summary: [],
         },
       },
     };
   },
   methods: {
-    doSwitch(type) {
-      this.showDetail = type == 0;
-      if (this.stores.billrecord.data.length > 0) {
-        getFeeSummaryRecord(
-          Object.assign(
-            {},
-            this.stores.billrecord.query,
-            this.stores.billrecord.query.dates.length <= 0
-              ? {}
-              : {
-                  fBeginDate:
-                    this.stores.billrecord.query.dates[0] == ""
-                      ? ""
-                      : dayjs(this.stores.billrecord.query.dates[0]).format(
-                          "YYYY-MM-DD"
-                        ),
-                  fEndDate:
-                    this.stores.billrecord.query.dates[1] == ""
-                      ? ""
-                      : dayjs(this.stores.billrecord.query.dates[1]).format(
-                          "YYYY-MM-DD"
-                        ),
-                }
-          )
-        ).then((res) => {
-          console.log(res);
-          this.stores.summary.data = res.data.data;
-        });
-      }
-    },
     loadRecordList() {
-      // if (
-      //   this.stores.billrecord.query.dates[0] == "" &&
-      //   this.stores.billrecord.query.dates[1] == ""
-      // ) {
-      //   return this.$Message.error("请输入检索条件!");
-      // }
-      getFeeRecord(
+      getMonthCollect(
         Object.assign(
           {},
           this.stores.billrecord.query,
@@ -642,7 +444,7 @@ export default {
         )
       ).then((res) => {
         this.stores.billrecord.data = res.data.data;
-        this.stores.billrecord.query.totalCount = res.data.totalCount;
+        this.stores.billrecord.data_summary = res.data.data_summary;
       });
     },
     handleAreaChanged() {
@@ -671,7 +473,6 @@ export default {
       this.loadRecordList();
     },
     exportExcel() {
-      const self = this;
       if (this.stores.billrecord.data.length <= 0) {
         return this.$Message.error("没有发现可以导出的数据!");
       }
@@ -741,15 +542,15 @@ export default {
       }
     });
 
-    // getBedSelectAll({
-    //   HospitalId: this.stores.billrecord.query.fhospitalid,
-    //   AreaId: this.stores.billrecord.query.fareaid,
-    // }).then((res) => {
-    //   const { state, data } = res.data;
-    //   if (state == "success") {
-    //     this.stores.billrecord.sources.beds_bark = data;
-    //   }
-    // });
+    getBedSelectAll({
+      HospitalId: this.stores.billrecord.query.fhospitalid,
+      AreaId: this.stores.billrecord.query.fareaid,
+    }).then((res) => {
+      const { state, data } = res.data;
+      if (state == "success") {
+        this.stores.billrecord.sources.beds_bark = data;
+      }
+    });
 
     getManagerSelectAll().then((res) => {
       const { state, data } = res.data;
@@ -758,18 +559,6 @@ export default {
       }
     });
 
-    getCareProjectSelectAll().then((res) => {
-      const { state, data } = res.data;
-      if (state == "success") {
-        this.stores.billrecord.sources.careProjects = data;
-      }
-    });
-    getCareWaySelectAll().then((res) => {
-      const { state, data } = res.data;
-      if (state == "success") {
-        this.stores.billrecord.sources.careWays = data;
-      }
-    });
     getPayWaySelectAll().then((res) => {
       const { state, data } = res.data;
       if (state == "success") {
@@ -780,6 +569,12 @@ export default {
       const { state, data } = res.data;
       if (state == "success") {
         this.stores.billrecord.sources.persons = data;
+      }
+    });
+    getUserSelectAll().then((res) => {
+      const { state, data } = res.data;
+      if (state == "success") {
+        this.stores.billrecord.sources.users = data;
       }
     });
   },

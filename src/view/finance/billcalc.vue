@@ -28,7 +28,7 @@
                       type="datetimerange"
                       style="width: 230px"
                       format="yyyy-MM-dd"
-                      placeholder="请选择开始护理、结束护理日期"
+                      placeholder="请选择护理结算日期"
                       clearable
                       @on-ok="handleSearchRecordList()"
                     ></DatePicker>

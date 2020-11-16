@@ -337,6 +337,7 @@ export default {
             hospiatls: [],
             areas: [],
             beds: [],
+            beds_bark: [],
             managers: [],
             careProjects: [],
             careWays: [],
@@ -557,6 +558,7 @@ export default {
     },
     handleAreaChanged() {
       this.changeBed();
+      this.loadRecordList();
     },
     handleRefresh() {
       this.loadRecordList();
@@ -650,15 +652,15 @@ export default {
       }
     });
 
-    getBedSelectAll({
-      HospitalId: this.stores.prepay.query.fhospitalid,
-      AreaId: this.stores.prepay.query.fareaid,
-    }).then((res) => {
-      const { state, data } = res.data;
-      if (state == "success") {
-        this.stores.prepay.sources.beds = data;
-      }
-    });
+    // getBedSelectAll({
+    //   HospitalId: this.stores.prepay.query.fhospitalid,
+    //   AreaId: this.stores.prepay.query.fareaid,
+    // }).then((res) => {
+    //   const { state, data } = res.data;
+    //   if (state == "success") {
+    //     this.stores.prepay.sources.beds = data;
+    //   }
+    // });
 
     getManagerSelectAll().then((res) => {
       const { state, data } = res.data;

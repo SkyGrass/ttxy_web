@@ -32,7 +32,7 @@
                       type="datetimerange"
                       style="width: 200px"
                       format="yyyy-MM-dd"
-                      placeholder="请选择日期"
+                      placeholder="请选择护理结算日期"
                       clearable
                       @on-ok="handleSearchRecordList()"
                     ></DatePicker>
@@ -97,7 +97,6 @@ import DzTable from "_c/tables/dz-table.vue";
 import dayjs from "dayjs";
 import { getPcFee, ExportExcel } from "@/api/sys/pcfee";
 import { getHospitalSelect } from "@/api/base/hospital";
-import { getPcSelectAll } from "@/api/base/pc";
 import { b64toFile } from "@/libs/tools";
 import { saveAs } from "file-saver";
 export default {
@@ -235,7 +234,6 @@ export default {
               { value: 1, text: "是" },
             ],
             hospiatls: [],
-            persons: [],
           },
           data: [],
         },
@@ -269,9 +267,6 @@ export default {
         this.stores.pcfee.data = res.data.data;
         this.stores.pcfee.query.totalCount = res.data.totalCount;
       });
-    },
-    handleAreaChanged() {
-      this.changeBed();
     },
     handleRefresh() {
       this.loadRecordList();
@@ -338,30 +333,12 @@ export default {
         }
       });
     },
-    changeBed() {
-      getBedSelectAll({
-        HospitalId: this.stores.pcfee.query.fhospitalid,
-        AreaId: this.stores.pcfee.query.fareaid,
-      }).then((res) => {
-        const { state, data } = res.data;
-        if (state == "success") {
-          this.stores.pcfee.sources.beds = data;
-        }
-      });
-    },
   },
   mounted() {
     getHospitalSelect().then((res) => {
       const { state, data } = res.data;
       if (state == "success") {
         this.stores.pcfee.sources.hospiatls = data;
-      }
-    });
-
-    getPcSelectAll().then((res) => {
-      const { state, data } = res.data;
-      if (state == "success") {
-        this.stores.pcfee.sources.persons = data;
       }
     });
   },

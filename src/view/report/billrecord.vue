@@ -162,7 +162,7 @@
     <Drawer
       :title="`收据详情-订单号[${curRecord.fOrderBillNo}]`"
       v-model="showDatail"
-      width="60%"
+      width="90%"
       @on-visible-change="showDraw"
       :closable="true"
       :mask-closable="true"
@@ -402,7 +402,7 @@ export default {
                 const {
                   row: { fBedID },
                 } = params;
-                var tmp = self.stores.billrecord.sources.beds.find(
+                var tmp = self.stores.billrecord.sources.beds_bark.find(
                   (f) => f.id == fBedID
                 );
 
@@ -597,6 +597,7 @@ export default {
             hospiatls: [],
             areas: [],
             beds: [],
+            beds_bark: [],
             managers: [],
             careProjects: [],
             careWays: [],
@@ -719,7 +720,7 @@ export default {
               title: "收款类型",
               align: "center",
               key: "fRecType",
-              width: 120,
+              width: 90,
             },
             {
               title: "收款方式",
@@ -743,7 +744,7 @@ export default {
               title: "结算天数",
               align: "center",
               key: "fDay",
-              width: 80,
+              width: 70,
             },
             {
               title: "累计收款金额",
@@ -1017,7 +1018,7 @@ export default {
                 const {
                   row: { fBedID },
                 } = params;
-                var tmp = self.stores.billrecord.sources.beds.find(
+                var tmp = self.stores.billrecord.sources.beds_bark.find(
                   (f) => f.id == fBedID
                 );
 
@@ -1073,6 +1074,7 @@ export default {
     },
     handleAreaChanged() {
       this.changeBed();
+      this.loadRecordList();
     },
     handleRefresh() {
       this.loadRecordList();
@@ -1224,7 +1226,7 @@ export default {
     }).then((res) => {
       const { state, data } = res.data;
       if (state == "success") {
-        this.stores.billrecord.sources.beds = data;
+        this.stores.billrecord.sources.beds_bark = data;
       }
     });
 

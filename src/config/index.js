@@ -18,11 +18,13 @@ export default {
    */
   baseUrl: {
     dev: "http://localhost:54321/",
+    //pro: "http://106.14.186.60:7083",
     pro: "http://106.14.186.60:8086",
     defaultPrefix: "api/v1/"
   },
   authUrl: {
     dev: "http://localhost:54321/api/oauth/auth",
+    //pro: "http://106.14.186.60:7083/api/oauth/auth"
     pro: "http://106.14.186.60:8086/api/oauth/auth"
   },
   /**
